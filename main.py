@@ -22,19 +22,16 @@ df = load_data()
 # Normalize NAV values to 10 on 31-Oct-18 or fallback
 def normalize_nav(df, fund_name):
     fund_data = df[df["Fund Name"] == fund_name].copy()
-    base_value_row = fund_data.loc[fund_data["Date"] == "2018-10-31"]
 
-    # Fallback to first available value if 31-Oct-18 is missing
-    if base_value_row.empty:
-        if fund_data.empty:
-            st.error(f"No data available for {fund_name}.")
-            return pd.DataFrame(columns=["Fund Name", "Date", "NAV"])
-        base_value = fund_data["NAV"].iloc[0]
-        st.warning(
-            f"No NAV data found for {fund_name} on 2018-10-31. Using the first available value instead."
-        )
-    else:
-        base_value = base_value_row["NAV"].values[0]
+    if fund_data.empty:
+        st.error(f"No data available for {fund_name}.")
+        return pd.DataFrame(columns=["Fund Name", "Date", "NAV"])
+
+    # Get the first available date in the dataset
+    first_available_date = fund_data["Date"].min()
+    base_value_row = fund_data.loc[fund_data["Date"] == first_available_date]
+
+    base_value = base_value_row["NAV"].values[0]
 
     if base_value != 10:
         fund_data["NAV"] = fund_data["NAV"] * (10 / base_value)
