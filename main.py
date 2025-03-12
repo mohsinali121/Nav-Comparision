@@ -6,7 +6,6 @@ import plotly.express as px
 # Load data
 @st.cache_data
 def load_data():
-    # file_path = "./sample_nav_data.xlsx"
     file_path = "./cleaned_nav_data.xlsx"
     df = pd.read_excel(file_path, header=0)
     df = df.melt(id_vars=df.columns[0], var_name="Date", value_name="NAV")
@@ -19,7 +18,7 @@ def load_data():
 df = load_data()
 
 
-# Normalize NAV values to 10 on 31-Oct-18 or fallback
+# Normalize NAV values to 10 based on the first available date
 def normalize_nav(df, fund_name):
     fund_data = df[df["Fund Name"] == fund_name].copy()
 
@@ -45,6 +44,7 @@ st.title("Mutual Fund NAV Comparison")
 funds = df["Fund Name"].unique()
 fund1 = st.selectbox("Select First Fund", funds)
 fund2 = st.selectbox("Select Second Fund", funds)
+fund3 = st.selectbox("Select Third Fund", funds)
 
 
 # Date range filter with fallback for NaT values
@@ -63,6 +63,7 @@ date_range = st.date_input(
 # Filter data based on selected funds and date range
 fund1_data = normalize_nav(df, fund1)
 fund2_data = normalize_nav(df, fund2)
+fund3_data = normalize_nav(df, fund3)
 
 filtered_fund1 = fund1_data[
     (fund1_data["Date"] >= pd.to_datetime(date_range[0]))
@@ -72,9 +73,13 @@ filtered_fund2 = fund2_data[
     (fund2_data["Date"] >= pd.to_datetime(date_range[0]))
     & (fund2_data["Date"] <= pd.to_datetime(date_range[1]))
 ]
+filtered_fund3 = fund3_data[
+    (fund3_data["Date"] >= pd.to_datetime(date_range[0]))
+    & (fund3_data["Date"] <= pd.to_datetime(date_range[1]))
+]
 
 # Merge data for visualization
-merged_data = pd.concat([filtered_fund1, filtered_fund2])
+merged_data = pd.concat([filtered_fund1, filtered_fund2, filtered_fund3])
 
 # Plot graph
 fig = px.line(
