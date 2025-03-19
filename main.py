@@ -192,6 +192,56 @@ def normalize_nav(df, fund_name):
 
     return fund_data
 
+def get_max_starting_date(df, fund_names):
+    """
+    Calculate the maximum starting date for the selected funds.
+    """
+    max_date = None
+    for fund_name in fund_names:
+        fund_data = df[df["Fund Name"] == fund_name]
+        if not fund_data.empty:
+            fund_start_date = fund_data["Date"].min()
+            if max_date is None or fund_start_date > max_date:
+                max_date = fund_start_date
+    return max_date
+
+def normalize_nav_with_max_date(df, fund_name, max_start_date):
+    """
+    Normalize NAV values for a fund starting from the max_start_date.
+    """
+    fund_data = df[df["Fund Name"] == fund_name].copy()
+
+    if fund_data.empty:
+        st.error(f"No data available for {fund_name}.")
+        return pd.DataFrame(columns=["Fund Name", "Date", "NAV"])
+
+    # Ensure NAV column is numeric
+    fund_data["NAV"] = pd.to_numeric(fund_data["NAV"], errors="coerce")
+
+    # Filter data for dates on or after max_start_date
+    fund_data = fund_data[fund_data["Date"] >= max_start_date]
+
+    if fund_data.empty:
+        st.error(f"No data available for {fund_name} on or after {max_start_date}.")
+        return pd.DataFrame(columns=["Fund Name", "Date", "NAV"])
+
+    # Get the first available date in the filtered dataset
+    first_available_date = fund_data["Date"].min()
+    base_value_row = fund_data.loc[fund_data["Date"] == first_available_date]
+
+    # Ensure base_value is numeric
+    base_value = base_value_row["NAV"].values[0]
+
+    if pd.isna(base_value):
+        st.error(f"Invalid NAV value for {fund_name} on the first available date.")
+        return pd.DataFrame(columns=["Fund Name", "Date", "NAV"])
+
+    # Normalize NAV values to 10
+    if base_value != 10:
+        fund_data["NAV"] = fund_data["NAV"] * (10 / base_value)
+
+    return fund_data
+
 
 # Streamlit UI
 st.title("Mutual Fund NAV Comparison")
@@ -287,11 +337,16 @@ date_range = st.date_input(
     ],
 )
 
-# Filter data based on selected funds and date range
-fund1_data = normalize_nav(st.session_state["df"], fund1)
-fund2_data = normalize_nav(st.session_state["df"], fund2)
-fund3_data = normalize_nav(st.session_state["df"], fund3)
+# Calculate the maximum starting date for the selected funds
+selected_funds = [fund1, fund2, fund3]
+max_start_date = get_max_starting_date(st.session_state["df"], selected_funds)
 
+# Normalize NAV values for each fund using the max_start_date
+fund1_data = normalize_nav_with_max_date(st.session_state["df"], fund1, max_start_date)
+fund2_data = normalize_nav_with_max_date(st.session_state["df"], fund2, max_start_date)
+fund3_data = normalize_nav_with_max_date(st.session_state["df"], fund3, max_start_date)
+
+# Filter data based on selected funds and date range
 filtered_fund1 = fund1_data[
     (fund1_data["Date"] >= pd.to_datetime(date_range[0]))
     & (fund1_data["Date"] <= pd.to_datetime(date_range[1]))
